@@ -7,15 +7,16 @@ import (
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	host "github.com/libp2p/go-libp2p/core/host"
+	discovery "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/multiformats/go-multiaddr"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Service connection ID
-const serviceCID = "anchi205/Echonet"
+const service = "anchi205/Echonet"
 
 // Structure representing P2P Host
-type P2PHost struct {
+type P2P struct {
 	// Represents the host context layer
 	// Context object used for handling the lifecycle of the P2P host
 	Ctx context.Context
@@ -26,8 +27,11 @@ type P2PHost struct {
 	// Instance of the Kademlia DHT for peer discovery
 	KadDHT *dht.IpfsDHT
 
+	// Represents the peer discovery service
+	Discovery *discovery.RoutingDiscovery
+
 	// GossipSub-based pubsub router for handling publish/subscribe messaging.
-	PubSubRouter *pubsub.PubSub
+	PubSub *pubsub.PubSub
 }
 
 /*
@@ -36,7 +40,9 @@ Constructs a libp2p host with a multiaddr on 0.0.0.0/0 IPV4 address and configur
 with NATPortMap to open a port in the firewall using UPnP. A GossipSub pubsub router
 is initialized for transport and a Kademlia DHT for peer discovery
 */
-func NewP2PHost(ctx context.Context) *P2PHost {
+func NewP2P() *P2P {
+	ctx := context.Background() // Setup a background context
+
 	// Create a new multiaddr object
 	sourcemultiaddr, _ := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
 
@@ -48,17 +54,17 @@ func NewP2PHost(ctx context.Context) *P2PHost {
 	)
 
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"error": err.Error(),
 		}).Fatalln("P2P Host Creation Failed!")
 	}
 
 	// Create a new PubSub service which uses a GossipSub router
 	// Initializes a GossipSub-based pubsub router (gossip)
-	gossip, err := pubsub.NewGossipSub(ctx, libhost)
+	pubsubhandler, err := pubsub.NewGossipSub(ctx, libhost)
 
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"error": err.Error(),
 		}).Fatalln("GossipSub Router Creation Failed!")
 	}
@@ -69,16 +75,20 @@ func NewP2PHost(ctx context.Context) *P2PHost {
 	kaddht, err := dht.New(ctx, libhost, dht.Mode(dht.ModeServer))
 
 	if err != nil {
-		log.WithFields(log.Fields{
+		logrus.WithFields(logrus.Fields{
 			"error": err.Error(),
 		}).Fatalln("Kademlia DHT Creation Failed!")
 	}
 
+	// Create a peer discovery service using the Kad DHT
+	routingdiscovery := discovery.NewRoutingDiscovery(kaddht)
+
 	// Pointer to a new P2PHost instance with the created host, DHT, and pubsub router.
-	return &P2PHost{
-		Ctx:          ctx,
-		Host:         libhost,
-		KadDHT:       kaddht,
-		PubSubRouter: gossip,
+	return &P2P{
+		Ctx:       ctx,
+		Host:      libhost,
+		KadDHT:    kaddht,
+		PubSub:    pubsubhandler,
+		Discovery: routingdiscovery,
 	}
 }

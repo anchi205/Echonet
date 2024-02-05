@@ -72,7 +72,7 @@ func NewUI() *UI {
 	chatbox.
 		SetBorder(true).
 		SetBorderColor(tcell.ColorGreen).
-		SetTitle(fmt.Sprintf("ChatRoom-%s", defaultroom())).
+		SetTitle(fmt.Sprintf("ChatRoom-%s", defaultroom)).
 		SetTitleAlign(tview.AlignLeft).
 		SetTitleColor(tcell.ColorWhite)
 
@@ -84,7 +84,7 @@ func NewUI() *UI {
 		SetTitleColor(tcell.ColorWhite)
 
 	input := tview.NewInputField().
-		SetLabel(defaultuser() + " > ").
+		SetLabel(defaultuser + " > ").
 		SetLabelColor(tcell.ColorGreen).
 		SetFieldWidth(0).
 		SetFieldBackgroundColor(tcell.ColorBlack)
@@ -161,12 +161,4 @@ func (ui *UI) Run() error {
 // Signals the termination of the application by sending a message to TermChan
 func (ui *UI) Close() {
 	ui.TermChan <- struct{}{}
-}
-
-func defaultuser() string {
-	return "New User"
-}
-
-func defaultroom() string {
-	return "A205"
 }
